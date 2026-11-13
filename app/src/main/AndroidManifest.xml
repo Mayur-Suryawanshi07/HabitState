@@ -3,6 +3,11 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <queries>
         <intent>
@@ -33,6 +38,16 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".data.focus.FocusBlockedActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HabitState.Transparent"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:taskAffinity="" />
+
         <service
             android:name=".service.FocusAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
@@ -45,6 +60,36 @@
                 android:name="android.accessibilityservice.accessibilityservice"
                 android:resource="@xml/focus_accessibility_service_config" />
         </service>
+
+        <!-- Habit Tracker Reminder Receivers -->
+        <receiver
+            android:name=".data.reminder.HabitAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".data.reminder.HabitActionReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".data.focus.FocusActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.mayur.habitstate.ACTION_TURN_OFF_FOCUS" />
+                <action android:name="com.mayur.habitstate.ACTION_TAKE_BREAK" />
+                <action android:name="com.mayur.habitstate.ACTION_RESUME_FOCUS" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".data.reminder.BootAndRebootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

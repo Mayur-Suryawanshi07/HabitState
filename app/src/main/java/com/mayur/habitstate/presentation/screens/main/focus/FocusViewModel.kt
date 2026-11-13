@@ -1,15 +1,20 @@
 package com.mayur.habitstate.presentation.screens.main.focus
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.mayur.habitstate.data.focus.FocusNotificationManager
 import com.mayur.habitstate.data.focus.FocusPreferencesRepository
 import com.mayur.habitstate.service.FocusAccessibilityService
 import kotlinx.coroutines.Dispatchers
@@ -24,13 +29,39 @@ import kotlinx.coroutines.withContext
 class FocusViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = FocusPreferencesRepository(application)
+    private val notificationManager = FocusNotificationManager(application)
 
     private val _state = MutableStateFlow(FocusState())
     val state: StateFlow<FocusState> = _state.asStateFlow()
 
+    private val focusStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            loadPreferences()
+        }
+    }
+
     init {
+        registerBroadcastReceiver()
         loadData()
         startTimerTicker()
+    }
+
+    private fun registerBroadcastReceiver() {
+        val app = getApplication<Application>()
+        val filter = IntentFilter(FocusNotificationManager.ACTION_FOCUS_STATE_CHANGED)
+        androidx.core.content.ContextCompat.registerReceiver(
+            app,
+            focusStateReceiver,
+            filter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            getApplication<Application>().unregisterReceiver(focusStateReceiver)
+        } catch (_: Exception) {}
     }
 
     fun loadData() {
@@ -40,8 +71,15 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun checkAccessibilityPermission() {
-        val enabled = FocusAccessibilityService.isServiceEnabled(getApplication())
-        _state.update { it.copy(isAccessibilityEnabled = enabled) }
+        val app = getApplication<Application>()
+        val accessibilityEnabled = FocusAccessibilityService.isServiceEnabled(app)
+        val overlayEnabled = android.provider.Settings.canDrawOverlays(app)
+        _state.update {
+            it.copy(
+                isAccessibilityEnabled = accessibilityEnabled,
+                isOverlayPermissionEnabled = overlayEnabled
+            )
+        }
     }
 
     private fun loadPreferences() {
@@ -57,6 +95,34 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
                 schedule = schedule,
                 isOnBreak = onBreak
             )
+        }
+
+        if (active) {
+            val breakRemMin = if (onBreak) {
+                val breakEnd = repository.getBreakEndTimestamp()
+                val remMs = breakEnd - System.currentTimeMillis()
+                if (remMs > 0) (remMs / 60000).toInt() + 1 else 0
+            } else 0
+            updateNotificationState(isFocusActive = true, isOnBreak = onBreak, breakRemainingMinutes = breakRemMin)
+        } else {
+            notificationManager.dismissFocusNotification()
+        }
+    }
+
+    private fun updateNotificationState(
+        isFocusActive: Boolean,
+        isOnBreak: Boolean,
+        breakRemainingMinutes: Int = 0
+    ) {
+        if (isFocusActive) {
+            val distractingCount = repository.getDistractingApps().size
+            notificationManager.showFocusActiveNotification(
+                isOnBreak = isOnBreak,
+                breakRemainingMinutes = breakRemainingMinutes,
+                distractingAppsCount = distractingCount
+            )
+        } else {
+            notificationManager.dismissFocusNotification()
         }
     }
 
@@ -144,18 +210,15 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
                 val breakEnd = repository.getBreakEndTimestamp()
                 val now = System.currentTimeMillis()
                 val isOnBreak = now < breakEnd
-
                 val active = repository.isFocusActive()
 
                 _state.update { currentState ->
-                    val newSessionSec = if (active && !isOnBreak) currentState.focusSessionSeconds + 1 else currentState.focusSessionSeconds
                     val breakRemSec = if (isOnBreak) (breakEnd - now) / 1000L else 0L
 
                     currentState.copy(
                         isFocusActive = active,
                         isOnBreak = isOnBreak,
-                        breakRemainingSeconds = breakRemSec,
-                        focusSessionSeconds = newSessionSec
+                        breakRemainingSeconds = breakRemSec
                     )
                 }
             }
@@ -165,7 +228,11 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleFocusMode() {
         val newStatus = !_state.value.isFocusActive
         repository.setFocusActive(newStatus)
-        _state.update { it.copy(isFocusActive = newStatus, isOnBreak = false) }
+        if (!newStatus) {
+            repository.setBreakEndTimestamp(0L)
+        }
+        _state.update { it.copy(isFocusActive = newStatus, isOnBreak = if (!newStatus) false else it.isOnBreak) }
+        updateNotificationState(isFocusActive = newStatus, isOnBreak = false)
     }
 
     fun toggleAppDistracting(packageName: String) {
@@ -183,6 +250,13 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
                 installedApps = updatedApps
             )
         }
+
+        if (_state.value.isFocusActive) {
+            updateNotificationState(
+                isFocusActive = true,
+                isOnBreak = _state.value.isOnBreak
+            )
+        }
     }
 
     fun startBreak(minutes: Int) {
@@ -195,16 +269,19 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
                 isBreakDialogOpen = false
             )
         }
+        updateNotificationState(isFocusActive = true, isOnBreak = true, breakRemainingMinutes = minutes)
     }
 
     fun endBreak() {
         repository.setBreakEndTimestamp(0L)
+        val active = repository.isFocusActive()
         _state.update {
             it.copy(
                 isOnBreak = false,
                 breakRemainingSeconds = 0L
             )
         }
+        updateNotificationState(isFocusActive = active, isOnBreak = false)
     }
 
     fun saveSchedule(schedule: FocusSchedule) {
@@ -217,6 +294,7 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
                 isFocusActive = active
             )
         }
+        updateNotificationState(isFocusActive = active, isOnBreak = false)
     }
 
     fun openScheduleDialog(open: Boolean) {

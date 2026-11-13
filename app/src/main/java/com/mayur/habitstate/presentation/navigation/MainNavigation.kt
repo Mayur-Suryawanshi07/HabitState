@@ -4,10 +4,13 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
+import androidx.navigation.toRoute
 import com.mayur.habitstate.presentation.screens.main.component.Screen
 import com.mayur.habitstate.presentation.screens.main.focus.FocusScreen
+import com.mayur.habitstate.presentation.screens.main.habit.AddEditHabitScreen
 import com.mayur.habitstate.presentation.screens.main.home.HomeScreen
 import com.mayur.habitstate.presentation.screens.main.profile.ProfileScreen
+import com.mayur.habitstate.presentation.screens.main.score.HabitScoreScreen
 
 fun NavGraphBuilder.mainNavGraph(navController: NavController) {
     navigation<Graphs.Main>(startDestination = Routes.Home) {
@@ -20,11 +23,34 @@ fun NavGraphBuilder.mainNavGraph(navController: NavController) {
                         Screen.Profile -> navController.navigate(Routes.Profile)
                     }
                 },
+                onNavigateToAddHabit = {
+                    navController.navigate(Routes.AddEditHabit(habitId = -1L))
+                },
+                onNavigateToEditHabit = { habitId ->
+                    navController.navigate(Routes.AddEditHabit(habitId = habitId))
+                },
+                onNavigateToHabitScore = {
+                    navController.navigate(Routes.HabitScore)
+                },
                 onLogout = {
                     navController.navigate(Graphs.Auth) {
                         popUpTo<Graphs.Main> { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable<Routes.HabitScore> {
+            HabitScoreScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable<Routes.AddEditHabit> { backStackEntry ->
+            val args = backStackEntry.toRoute<Routes.AddEditHabit>()
+            AddEditHabitScreen(
+                habitId = args.habitId,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

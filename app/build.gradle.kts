@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
     id("com.google.gms.google-services")
 }
 
@@ -13,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "com.mayur.habitstate"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
@@ -54,6 +55,7 @@ dependencies {
     implementation(libs.googleid)
     implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -68,4 +70,15 @@ dependencies {
 
     //viewmodel
     implementation(libs.androidx.lifecycle.viewmodel)
+
+    // Room
+    implementation("androidx.room:room-runtime:2.8.5")
+    implementation("androidx.room:room-ktx:2.8.5")
+    ksp("androidx.room:room-compiler:2.8.5")
+
+    // WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+
+    // Hilt / Dependency Injection
+    implementation("com.google.dagger:hilt-android:2.51.1")
 }

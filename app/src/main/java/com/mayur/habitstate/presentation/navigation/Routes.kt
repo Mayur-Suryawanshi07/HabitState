@@ -21,6 +21,12 @@ sealed interface Routes {
 
     @Serializable
     data object Profile : Routes
+
+    @Serializable
+    data object HabitScore : Routes
+
+    @Serializable
+    data class AddEditHabit(val habitId: Long = -1L) : Routes
 }
 
 @Serializable

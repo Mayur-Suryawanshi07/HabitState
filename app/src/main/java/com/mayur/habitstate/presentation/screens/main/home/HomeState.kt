@@ -1,28 +1,50 @@
 package com.mayur.habitstate.presentation.screens.main.home
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.SelfImprovement
-import androidx.compose.material.icons.filled.WaterDrop
-import androidx.compose.ui.graphics.vector.ImageVector
+import com.mayur.habitstate.domain.model.Habit
+import com.mayur.habitstate.domain.model.HabitWithStatus
+import java.time.LocalDate
 
-data class HabitItem(
-    val title: String,
-    val category: String,
-    val streak: Int,
-    val isCompleted: Boolean,
-    val icon: ImageVector
-)
-
-val sampleHabits = listOf(
-    HabitItem("Morning Hydration", "Health", 7, true, Icons.Default.WaterDrop),
-    HabitItem("30-Min Daily Reading", "Mindset", 12, false, Icons.Default.SelfImprovement),
-    HabitItem("Core Workout", "Fitness", 5, true, Icons.Default.LocalFireDepartment)
-)
+enum class HabitListFilter(val label: String) {
+    ALL("All"),
+    DUE("Due")
+}
 
 data class HomeState(
     val userName: String = "Habit Tracker",
     val userEmail: String = "",
-    val habits: List<HabitItem> = emptyList(),
-    val isLoading: Boolean = false
-)
+    val selectedDate: LocalDate = LocalDate.now(),
+    val weekDates: List<LocalDate> = emptyList(),
+    val weekCompletionStatus: Map<LocalDate, Float> = emptyMap(),
+    val selectedFilter: HabitListFilter = HabitListFilter.ALL,
+    val habits: List<HabitWithStatus> = emptyList(),
+    val habitScore: Float = 0f,
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val isAddEditDialogOpen: Boolean = false,
+    val habitToEdit: Habit? = null
+) {
+    val totalCount: Int
+        get() = habits.size
+
+    val completedCount: Int
+        get() = habits.count { it.isCompletedToday }
+
+    val dueCount: Int
+        get() = habits.count { !it.isCompletedToday }
+
+    val progressFraction: Float
+        get() = if (totalCount == 0) 0f else completedCount.toFloat() / totalCount
+
+    val progressPercentage: Int
+        get() = (progressFraction * 100).toInt()
+
+    val filteredHabits: List<HabitWithStatus>
+        get() = if (selectedFilter == HabitListFilter.ALL) {
+            habits
+        } else {
+            habits.filter { !it.isCompletedToday }
+        }
+
+    val isTodaySelected: Boolean
+        get() = selectedDate == LocalDate.now()
+}

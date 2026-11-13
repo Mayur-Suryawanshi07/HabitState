@@ -11,8 +11,9 @@ class FocusPreferencesRepository(context: Context) {
         context.getSharedPreferences("habitstate_focus_prefs", Context.MODE_PRIVATE)
 
     fun isFocusActive(): Boolean {
-        val manualActive = prefs.getBoolean(KEY_FOCUS_ACTIVE, false)
-        if (manualActive) return true
+        if (prefs.contains(KEY_FOCUS_ACTIVE)) {
+            return prefs.getBoolean(KEY_FOCUS_ACTIVE, false)
+        }
         return isScheduleActiveNow()
     }
 
@@ -21,15 +22,18 @@ class FocusPreferencesRepository(context: Context) {
     }
 
     fun setFocusActive(active: Boolean) {
-        prefs.edit().putBoolean(KEY_FOCUS_ACTIVE, active).apply()
+        prefs.edit().putBoolean(KEY_FOCUS_ACTIVE, active).commit()
     }
 
     fun getDistractingApps(): Set<String> {
-        return prefs.getStringSet(KEY_DISTRACTING_APPS, emptySet()) ?: emptySet()
+        if (!prefs.contains(KEY_DISTRACTING_APPS)) {
+            return HashSet(DEFAULT_DISTRACTING_PACKAGES)
+        }
+        return HashSet(prefs.getStringSet(KEY_DISTRACTING_APPS, emptySet()) ?: emptySet())
     }
 
     fun setDistractingApps(apps: Set<String>) {
-        prefs.edit().putStringSet(KEY_DISTRACTING_APPS, apps).apply()
+        prefs.edit().putStringSet(KEY_DISTRACTING_APPS, HashSet(apps)).commit()
     }
 
     fun toggleDistractingApp(packageName: String) {
@@ -47,7 +51,7 @@ class FocusPreferencesRepository(context: Context) {
     }
 
     fun setBreakEndTimestamp(timestamp: Long) {
-        prefs.edit().putLong(KEY_BREAK_END_TIMESTAMP, timestamp).apply()
+        prefs.edit().putLong(KEY_BREAK_END_TIMESTAMP, timestamp).commit()
     }
 
     fun isOnBreak(): Boolean {
@@ -106,6 +110,17 @@ class FocusPreferencesRepository(context: Context) {
     }
 
     companion object {
+
+        val DEFAULT_DISTRACTING_PACKAGES: Set<String> = setOf(
+            "com.instagram.android",
+            "com.zhiliaoapp.musically",
+            "com.twitter.android",
+            "com.facebook.katana",
+            "com.google.android.youtube",
+            "com.reddit.frontpage",
+            "com.snapchat.android"
+        )
+
         private const val KEY_FOCUS_ACTIVE = "key_focus_active"
         private const val KEY_DISTRACTING_APPS = "key_distracting_apps"
         private const val KEY_BREAK_END_TIMESTAMP = "key_break_end_timestamp"

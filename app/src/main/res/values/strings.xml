@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">HabitState</string>
+    <string name="focus_accessibility_service_description">Allows HabitState to pause distracting apps while Focus Mode is on. This is required to detect when a blocked app is opened and show the Focus is on screen.</string>
 </resources>

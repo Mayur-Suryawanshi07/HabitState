@@ -27,6 +27,7 @@ data class FocusState(
     val distractingAppPackages: Set<String> = emptySet(),
     val schedule: FocusSchedule = FocusSchedule(),
     val isAccessibilityEnabled: Boolean = false,
+    val isOverlayPermissionEnabled: Boolean = false,
     val isScheduleDialogOpen: Boolean = false,
     val isBreakDialogOpen: Boolean = false,
     val isLoadingApps: Boolean = true,

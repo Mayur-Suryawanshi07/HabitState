@@ -1,7 +1,11 @@
 package com.mayur.habitstate.presentation.screens.main.focus
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -50,6 +54,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -79,6 +84,17 @@ fun FocusScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Android 13+ Notification Permission Launcher
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     // Re-check permissions and settings when screen resumes
     DisposableEffect(lifecycleOwner) {
@@ -129,8 +145,8 @@ fun FocusScreen(
             contentPadding = PaddingValues(20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Accessibility Permission Banner
-            if (!state.isAccessibilityEnabled) {
+            // Permission Banner (Accessibility & Display Over Apps)
+            if (!state.isAccessibilityEnabled || !state.isOverlayPermissionEnabled) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(
@@ -148,7 +164,7 @@ fun FocusScreen(
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(
-                                    text = "Enable App Blocking",
+                                    text = "Setup Required for App Blocking",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -156,23 +172,54 @@ fun FocusScreen(
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "To automatically pause distracting apps when Focus Mode is active, turn on HabitState in Accessibility Settings.",
+                                text = "To show the 'Focus is on' dialog and pause apps, permissions are required:",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.9f)
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = {
-                                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                                    context.startActivity(intent)
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary
-                                )
-                            ) {
-                                Text("Enable in Settings")
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            if (!state.isAccessibilityEnabled) {
+                                Button(
+                                    onClick = {
+                                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                        context.startActivity(intent)
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("1. Enable Accessibility Service")
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
+
+                            if (!state.isOverlayPermissionEnabled) {
+                                Button(
+                                    onClick = {
+                                        val intent = Intent(
+                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                            android.net.Uri.parse("package:${context.packageName}")
+                                        )
+                                        context.startActivity(intent)
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("2. Allow Display Over Other Apps")
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+
+                            Text(
+                                text = "After an app update, turn HabitState Focus App Blocking off and on again in Accessibility settings. Xiaomi / MIUI / HyperOS: also enable 'Display pop-up windows while running in background'.",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                            )
                         }
                     }
                 }
@@ -257,18 +304,37 @@ fun FocusScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Column {
-                                    Text(
-                                        text = if (state.isOnBreak) "On Break" else "Focus Session Active",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .background(
+                                                color = if (state.isOnBreak) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                                                shape = CircleShape
+                                            )
                                     )
-                                    Text(
-                                        text = if (state.isOnBreak) formatSeconds(state.breakRemainingSeconds) else formatSeconds(state.focusSessionSeconds),
-                                        style = MaterialTheme.typography.headlineMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = if (state.isOnBreak) "On Break" else "Focus Mode Active",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = if (state.isOnBreak) {
+                                                "Break remaining: ${formatSeconds(state.breakRemainingSeconds)}"
+                                            } else {
+                                                "Distracting apps are paused"
+                                            },
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                                        )
+                                    }
                                 }
                                 if (state.isOnBreak) {
                                     TextButton(onClick = viewModel::endBreak) {

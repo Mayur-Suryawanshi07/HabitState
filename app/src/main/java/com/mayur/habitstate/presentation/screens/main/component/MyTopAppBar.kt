@@ -22,7 +22,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
@@ -46,13 +45,17 @@ fun CustomTopBar(
     ) {
         if (onBackClick != null) {
             IconButton(onClick = onBackClick) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    "Back",
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
             }
         }
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier.weight(1f)
         )
         actions()
@@ -61,7 +64,7 @@ fun CustomTopBar(
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     data object Home : Screen("home", "Home", Icons.Default.Home)
-    data object Search : Screen("focus", "focus", Icons.Default.RemoveRedEye)
+    data object Search : Screen("focus", "Focus", Icons.Default.CenterFocusStrong)
     data object Profile : Screen("profile", "Profile", Icons.Default.Person)
 }
 
